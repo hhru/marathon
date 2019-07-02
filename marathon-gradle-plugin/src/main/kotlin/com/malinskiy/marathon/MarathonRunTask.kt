@@ -2,11 +2,7 @@ package com.malinskiy.marathon
 
 import com.android.build.gradle.api.BaseVariant
 import com.android.build.gradle.api.TestVariant
-import com.malinskiy.marathon.android.AndroidConfiguration
-import com.malinskiy.marathon.android.DEFAULT_APPLICATION_PM_CLEAR
-import com.malinskiy.marathon.android.DEFAULT_AUTO_GRANT_PERMISSION
-import com.malinskiy.marathon.android.DEFAULT_INSTALL_OPTIONS
-import com.malinskiy.marathon.android.defaultInitTimeoutMillis
+import com.malinskiy.marathon.android.*
 import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.extensions.extractApplication
 import com.malinskiy.marathon.extensions.extractTestApplication
@@ -53,7 +49,7 @@ open class MarathonRunTask : DefaultTask(), VerificationTask {
                 extensionConfig.flakinessStrategy?.toStrategy(),
                 extensionConfig.retryStrategy?.toStrategy(),
                 extensionConfig.filteringConfiguration?.toFilteringConfiguration(),
-                ignoreFailure && (extensionConfig?.ignoreFailures ?: true),
+                ignoreFailure && (extensionConfig.ignoreFailures ?: true),
                 extensionConfig.isCodeCoverageEnabled,
                 extensionConfig.fallbackToScreenshots,
                 extensionConfig.testClassRegexes?.map { it.toRegex() },
@@ -92,17 +88,22 @@ open class MarathonRunTask : DefaultTask(), VerificationTask {
         val adbInitTimeout = extension.adbInitTimeout ?: defaultInitTimeoutMillis
         val installOptions = extension.installOptions ?: DEFAULT_INSTALL_OPTIONS
         val preferableRecorderType = extension.preferableRecorderType
+        val enableKaspressoStepsListener = extension.enableKaspressoStepsListener
+                ?: DEFAULT_ENABLE_KASPRESSO_STEPS_LISTENER
 
-        return AndroidConfiguration(sdk,
-                applicationApk,
-                instrumentationApk,
-                autoGrantPermission,
-                instrumentationArgs,
-                applicationPmClear,
-                testApplicationPmClear,
-                adbInitTimeout,
-                installOptions,
-                preferableRecorderType)
+        return AndroidConfiguration(
+                androidSdk = sdk,
+                applicationOutput = applicationApk,
+                testApplicationOutput = instrumentationApk,
+                autoGrantPermission = autoGrantPermission,
+                instrumentationArgs = instrumentationArgs,
+                applicationPmClear = applicationPmClear,
+                testApplicationPmClear = testApplicationPmClear,
+                adbInitTimeoutMillis = adbInitTimeout,
+                installOptions = installOptions,
+                preferableRecorderType = preferableRecorderType,
+                enableKaspressoStepsListener = enableKaspressoStepsListener
+        )
     }
 
     override fun getIgnoreFailures(): Boolean = ignoreFailure

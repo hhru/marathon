@@ -2,6 +2,7 @@ package com.malinskiy.marathon.cli.args
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.malinskiy.marathon.android.AndroidConfiguration
+import com.malinskiy.marathon.android.DEFAULT_ENABLE_KASPRESSO_STEPS_LISTENER
 import com.malinskiy.marathon.android.DEFAULT_INSTALL_OPTIONS
 import com.malinskiy.marathon.android.defaultInitTimeoutMillis
 import com.malinskiy.marathon.device.DeviceFeature
@@ -18,8 +19,9 @@ data class FileAndroidConfiguration(
         @JsonProperty("testApplicationPmClear") val testApplicationPmClear: Boolean?,
         @JsonProperty("adbInitTimeoutMillis") val adbInitTimeoutMillis: Int?,
         @JsonProperty("installOptions") val installOptions: String?,
-        @JsonProperty("preferableRecorderType") val preferableRecorderType: DeviceFeature? = null)
-    : FileVendorConfiguration {
+        @JsonProperty("preferableRecorderType") val preferableRecorderType: DeviceFeature? = null,
+        @JsonProperty("enableKaspressoStepsListener") val enableKaspressoStepsListener: Boolean?
+) : FileVendorConfiguration {
 
     fun toAndroidConfiguration(environmentAndroidSdk: File?): AndroidConfiguration {
         val finalAndroidSdk = androidSdk
@@ -27,16 +29,17 @@ data class FileAndroidConfiguration(
                 ?: throw ConfigurationException("No android SDK path specified")
 
         return AndroidConfiguration(
-            androidSdk = finalAndroidSdk,
-            applicationOutput = applicationOutput,
-            testApplicationOutput = testApplicationOutput,
-            autoGrantPermission = autoGrantPermission ?: false,
-            instrumentationArgs = instrumentationArgs ?: emptyMap(),
-            applicationPmClear = applicationPmClear ?: false,
-            testApplicationPmClear = testApplicationPmClear ?: false,
-            adbInitTimeoutMillis = adbInitTimeoutMillis ?: defaultInitTimeoutMillis,
-            installOptions = installOptions ?: DEFAULT_INSTALL_OPTIONS,
-            preferableRecorderType = preferableRecorderType
+                androidSdk = finalAndroidSdk,
+                applicationOutput = applicationOutput,
+                testApplicationOutput = testApplicationOutput,
+                autoGrantPermission = autoGrantPermission ?: false,
+                instrumentationArgs = instrumentationArgs ?: emptyMap(),
+                applicationPmClear = applicationPmClear ?: false,
+                testApplicationPmClear = testApplicationPmClear ?: false,
+                adbInitTimeoutMillis = adbInitTimeoutMillis ?: defaultInitTimeoutMillis,
+                installOptions = installOptions ?: DEFAULT_INSTALL_OPTIONS,
+                preferableRecorderType = preferableRecorderType,
+                enableKaspressoStepsListener = enableKaspressoStepsListener ?: DEFAULT_ENABLE_KASPRESSO_STEPS_LISTENER
         )
     }
 }

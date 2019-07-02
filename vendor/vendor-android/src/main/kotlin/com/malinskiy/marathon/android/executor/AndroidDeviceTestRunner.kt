@@ -28,6 +28,7 @@ import com.malinskiy.marathon.io.FileManager
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
 import com.malinskiy.marathon.report.logs.LogWriter
+import com.malinskiy.marathon.report.steps.StepsJsonProvider
 import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.test.toTestName
 import kotlinx.coroutines.CompletableDeferred
@@ -50,6 +51,7 @@ class AndroidDeviceTestRunner(private val device: AndroidDevice) {
 
         val fileManager = FileManager(configuration.outputDir)
         val attachmentProviders = mutableListOf<AttachmentProvider>()
+        val stepsJsonProviders = mutableListOf<StepsJsonProvider>()
 
         val features = device.deviceFeatures
 
@@ -59,12 +61,17 @@ class AndroidDeviceTestRunner(private val device: AndroidDevice) {
         } ?: NoOpTestRunListener()
 
         val logCatListener = LogCatListener(device, devicePoolId, LogWriter(fileManager))
-                .also { attachmentProviders.add(it) }
+                .also { listener ->
+                    attachmentProviders.add(listener)
+                    if (androidConfiguration.enableKaspressoStepsListener) {
+                        stepsJsonProviders.add(listener)
+                    }
+                }
         val listeners = CompositeTestRunListener(
                 listOf(
                         recorderListener,
                         logCatListener,
-                        TestRunResultsListener(testBatch, device, deferred, attachmentProviders),
+                        TestRunResultsListener(testBatch, device, deferred, attachmentProviders, stepsJsonProviders),
                         DebugTestRunListener(device),
                         ProgressTestRunListener(device, devicePoolId, progressReporter)
                 )
@@ -120,17 +127,17 @@ class AndroidDeviceTestRunner(private val device: AndroidDevice) {
 
     private fun prepareRecorderListener(feature: DeviceFeature, fileManager: FileManager, devicePoolId: DevicePoolId,
                                         attachmentProviders: MutableList<AttachmentProvider>): NoOpTestRunListener =
-        when (feature) {
-            DeviceFeature.VIDEO      -> {
-                ScreenRecorderTestRunListener(fileManager, devicePoolId, device)
-                    .also { attachmentProviders.add(it) }
-            }
+            when (feature) {
+                DeviceFeature.VIDEO      -> {
+                    ScreenRecorderTestRunListener(fileManager, devicePoolId, device)
+                            .also { attachmentProviders.add(it) }
+                }
 
-            DeviceFeature.SCREENSHOT -> {
-                ScreenCapturerTestRunListener(fileManager, devicePoolId, device)
-                    .also { attachmentProviders.add(it) }
+                DeviceFeature.SCREENSHOT -> {
+                    ScreenCapturerTestRunListener(fileManager, devicePoolId, device)
+                            .also { attachmentProviders.add(it) }
+                }
             }
-        }
 
     private fun prepareTestRunner(configuration: Configuration,
                                   androidConfiguration: AndroidConfiguration,

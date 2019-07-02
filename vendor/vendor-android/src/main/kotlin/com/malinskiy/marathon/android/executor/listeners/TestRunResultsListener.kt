@@ -11,6 +11,8 @@ import com.malinskiy.marathon.execution.TestResult
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.attachment.AttachmentListener
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
+import com.malinskiy.marathon.report.steps.StepsJsonListener
+import com.malinskiy.marathon.report.steps.StepsJsonProvider
 import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.test.toTestName
@@ -21,13 +23,19 @@ import com.android.ddmlib.testrunner.TestRunResult as DdmLibTestRunResult
 class TestRunResultsListener(private val testBatch: TestBatch,
                              private val device: Device,
                              private val deferred: CompletableDeferred<TestBatchResults>,
-                             private val attachmentProviders: List<AttachmentProvider>)
-    : AbstractTestRunResultListener(), AttachmentListener {
+                             private val attachmentProviders: List<AttachmentProvider>,
+                             private val stepsJsonProviders: List<StepsJsonProvider>)
+    : AbstractTestRunResultListener(), AttachmentListener, StepsJsonListener {
 
     private val attachments: MutableMap<Test, MutableList<Attachment>> = mutableMapOf()
+    private val stepsJsons: MutableMap<Test, String> = mutableMapOf()
+    private val logger = MarathonLogging.logger("TestRunResultsListener")
 
     init {
         attachmentProviders.forEach {
+            it.registerListener(this)
+        }
+        stepsJsonProviders.forEach {
             it.registerListener(this)
         }
     }
@@ -41,7 +49,9 @@ class TestRunResultsListener(private val testBatch: TestBatch,
         attachments[test]!!.add(attachment)
     }
 
-    private val logger = MarathonLogging.logger("TestRunResultsListener")
+    override fun onStepsJsonAttached(test: Test, stepsJson: String) {
+        stepsJsons[test] = stepsJson
+    }
 
     override fun handleTestRunResults(runResult: DdmLibTestRunResult) {
         val results = runResult.testResults
@@ -76,16 +86,18 @@ class TestRunResultsListener(private val testBatch: TestBatch,
         deferred.complete(TestBatchResults(device, finished, failed, skipped))
     }
 
-    fun Map.Entry<TestIdentifier, DdmLibTestResult>.toTestResult(device: Device): TestResult {
+    private fun Map.Entry<TestIdentifier, DdmLibTestResult>.toTestResult(device: Device): TestResult {
         val testInstanceFromBatch = testBatch.tests.find { "${it.pkg}.${it.clazz}" == key.className && it.method == key.testName }
         val test = key.toTest()
         val attachments = attachments[test] ?: emptyList<Attachment>()
+        val stepsJson = stepsJsons[test]
         return TestResult(test = testInstanceFromBatch ?: test,
                 device = device.toDeviceInfo(),
                 status = value.status.toMarathonStatus(),
                 startTime = value.startTime,
                 endTime = value.endTime,
                 stacktrace = value.stackTrace,
+                stepsJson = stepsJson,
                 attachments = attachments)
     }
 

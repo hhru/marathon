@@ -12,16 +12,31 @@ import com.malinskiy.marathon.execution.AttachmentType
 import com.malinskiy.marathon.report.attachment.AttachmentListener
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
 import com.malinskiy.marathon.report.logs.LogWriter
+import com.malinskiy.marathon.report.steps.StepsJsonListener
+import com.malinskiy.marathon.report.steps.StepsJsonProvider
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
-class LogCatListener(private val device: AndroidDevice,
-                     private val devicePoolId: DevicePoolId,
-                     private val logWriter: LogWriter) : NoOpTestRunListener(), AttachmentProvider {
+class LogCatListener(
+        private val device: AndroidDevice,
+        private val devicePoolId: DevicePoolId,
+        private val logWriter: LogWriter
+) : NoOpTestRunListener(), AttachmentProvider, StepsJsonProvider {
+
+    companion object {
+        private const val ALLURE_STEPS_JSON_PREFIX = "#AllureStepsInfoJson#:"
+    }
+
+
     private val attachmentListeners = mutableListOf<AttachmentListener>()
+    private val stepsJsonListeners = mutableListOf<StepsJsonListener>()
 
     override fun registerListener(listener: AttachmentListener) {
         attachmentListeners.add(listener)
+    }
+
+    override fun registerListener(listener: StepsJsonListener) {
+        stepsJsonListeners.add(listener)
     }
 
     private val receiver = LogCatReceiverTask(device.ddmsDevice)
@@ -42,11 +57,22 @@ class LogCatListener(private val device: AndroidDevice,
 
     override fun testEnded(test: TestIdentifier, testMetrics: Map<String, String>) {
         val messages = ref.getAndSet(mutableListOf())
-        val file = logWriter.saveLogs(test.toTest(), devicePoolId, device.toDeviceInfo(), messages.map {
-            "${it.timestamp} ${it.pid}-${it.tid}/${it.appName} ${it.logLevel.priorityLetter}/${it.tag}: ${it.message}"
-        })
 
-        attachmentListeners.forEach { it.onAttachment(test.toTest(), Attachment(file, AttachmentType.LOG)) }
+        val stepsJson = StringBuilder("")
+        val needSearchStepsJsonMessages = stepsJsonListeners.isNotEmpty()
+        val logMessages = messages.map {
+            if (needSearchStepsJsonMessages && it.message.startsWith(ALLURE_STEPS_JSON_PREFIX)) {
+                stepsJson.append(it.message.substring(ALLURE_STEPS_JSON_PREFIX.length))
+            }
+            "${it.timestamp} ${it.pid}-${it.tid}/${it.appName} ${it.logLevel.priorityLetter}/${it.tag}: ${it.message}"
+        }
+        val testIdentifier = test.toTest()
+        val file = logWriter.saveLogs(testIdentifier, devicePoolId, device.toDeviceInfo(), logMessages)
+
+        attachmentListeners.forEach { it.onAttachment(testIdentifier, Attachment(file, AttachmentType.LOG)) }
+        if (stepsJson.isNotBlank()) {
+            stepsJsonListeners.forEach { it.onStepsJsonAttached(testIdentifier, stepsJson.toString()) }
+        }
     }
 
     override fun testRunEnded(elapsedTime: Long, runMetrics: Map<String, String>) {

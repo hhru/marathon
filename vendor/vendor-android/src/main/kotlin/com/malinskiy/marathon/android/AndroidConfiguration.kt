@@ -13,17 +13,22 @@ const val DEFAULT_AUTO_GRANT_PERMISSION = false
 const val DEFAULT_APPLICATION_PM_CLEAR = false
 const val DEFAULT_TEST_APPLICATION_PM_CLEAR = false
 const val DEFAULT_INSTALL_OPTIONS = ""
+const val DEFAULT_ENABLE_KASPRESSO_STEPS_LISTENER = false
 
-data class AndroidConfiguration(val androidSdk: File,
-                                val applicationOutput: File?,
-                                val testApplicationOutput: File,
-                                val autoGrantPermission: Boolean = DEFAULT_AUTO_GRANT_PERMISSION,
-                                val instrumentationArgs: Map<String, String> = emptyMap(),
-                                val applicationPmClear: Boolean = DEFAULT_APPLICATION_PM_CLEAR,
-                                val testApplicationPmClear: Boolean = DEFAULT_TEST_APPLICATION_PM_CLEAR,
-                                val adbInitTimeoutMillis: Int = defaultInitTimeoutMillis,
-                                val installOptions: String = DEFAULT_INSTALL_OPTIONS,
-                                val preferableRecorderType: DeviceFeature? = null) : VendorConfiguration {
+
+data class AndroidConfiguration(
+        val androidSdk: File,
+        val applicationOutput: File?,
+        val testApplicationOutput: File,
+        val autoGrantPermission: Boolean = DEFAULT_AUTO_GRANT_PERMISSION,
+        val instrumentationArgs: Map<String, String> = emptyMap(),
+        val applicationPmClear: Boolean = DEFAULT_APPLICATION_PM_CLEAR,
+        val testApplicationPmClear: Boolean = DEFAULT_TEST_APPLICATION_PM_CLEAR,
+        val adbInitTimeoutMillis: Int = defaultInitTimeoutMillis,
+        val installOptions: String = DEFAULT_INSTALL_OPTIONS,
+        val preferableRecorderType: DeviceFeature? = null,
+        val enableKaspressoStepsListener: Boolean = DEFAULT_ENABLE_KASPRESSO_STEPS_LISTENER
+) : VendorConfiguration {
 
     override fun testParser(): TestParser? {
         return AndroidTestParser()

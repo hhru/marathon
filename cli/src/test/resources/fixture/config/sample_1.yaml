@@ -72,3 +72,4 @@ vendorConfiguration:
     debug: "false"
   installOptions: "-d"
   preferableRecorderType: "screenshot"
+  enableKaspressoStepsListener: true

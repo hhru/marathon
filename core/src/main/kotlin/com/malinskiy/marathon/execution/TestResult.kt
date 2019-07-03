@@ -9,6 +9,7 @@ data class TestResult(val test: Test,
                       val startTime: Long,
                       val endTime: Long,
                       val stacktrace: String? = null,
+                      val stepsJson: String? = null,
                       val attachments: List<Attachment> = emptyList()) {
     fun durationMillis() = endTime - startTime
 
@@ -29,6 +30,7 @@ data class TestResult(val test: Test,
     override fun toString(): String {
         return "TestResult(test=${test}, " +
                 "device=${device}, status=${status}, " +
+                "stepsJson=${stepsJson}, " +
                 "startTime=${startTime}, endTime=${endTime}, " +
                 "stacktrace=${stacktrace?.take(24)})"
     }

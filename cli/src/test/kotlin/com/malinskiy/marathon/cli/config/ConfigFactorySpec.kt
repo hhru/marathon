@@ -72,7 +72,7 @@ object ConfigFactorySpec : Spek({
         }
 
         fun mockEnvironmentReader(path: String? = null): EnvironmentReader {
-            val environmentReader: EnvironmentReader =  mock()
+            val environmentReader: EnvironmentReader = mock()
             whenever(environmentReader.read()) `it returns` EnvironmentConfiguration(path?.let { File(it) })
             return environmentReader
         }
@@ -133,16 +133,17 @@ object ConfigFactorySpec : Spek({
                 configuration.debug shouldEqual true
 
                 configuration.vendorConfiguration shouldEqual AndroidConfiguration(
-                        File("/local/android"),
-                        File("kotlin-buildscript/build/outputs/apk/debug/kotlin-buildscript-debug.apk"),
-                        File("kotlin-buildscript/build/outputs/apk/androidTest/debug/kotlin-buildscript-debug-androidTest.apk"),
-                        true,
-                        mapOf("debug" to "false"),
-                        true,
-                        true,
-                        30_000,
-                        "-d",
-                        DeviceFeature.SCREENSHOT
+                        androidSdk = File("/local/android"),
+                        applicationOutput = File("kotlin-buildscript/build/outputs/apk/debug/kotlin-buildscript-debug.apk"),
+                        testApplicationOutput = File("kotlin-buildscript/build/outputs/apk/androidTest/debug/kotlin-buildscript-debug-androidTest.apk"),
+                        autoGrantPermission = true,
+                        instrumentationArgs = mapOf("debug" to "false"),
+                        applicationPmClear = true,
+                        testApplicationPmClear = true,
+                        adbInitTimeoutMillis = 30_000,
+                        installOptions = "-d",
+                        preferableRecorderType = DeviceFeature.SCREENSHOT,
+                        enableKaspressoStepsListener = true
                 )
             }
         }
@@ -177,16 +178,19 @@ object ConfigFactorySpec : Spek({
                 configuration.testBatchTimeoutMillis shouldEqual 900_000
                 configuration.testOutputTimeoutMillis shouldEqual 60_000
                 configuration.debug shouldEqual true
+
                 configuration.vendorConfiguration shouldEqual AndroidConfiguration(
-                        File("/local/android"),
-                        File("kotlin-buildscript/build/outputs/apk/debug/kotlin-buildscript-debug.apk"),
-                        File("kotlin-buildscript/build/outputs/apk/androidTest/debug/kotlin-buildscript-debug-androidTest.apk"),
-                        false,
-                        mapOf(),
-                        false,
-                        false,
-                        30_000,
-                        ""
+                        androidSdk = File("/local/android"),
+                        applicationOutput = File("kotlin-buildscript/build/outputs/apk/debug/kotlin-buildscript-debug.apk"),
+                        testApplicationOutput = File("kotlin-buildscript/build/outputs/apk/androidTest/debug/kotlin-buildscript-debug-androidTest.apk"),
+                        autoGrantPermission = false,
+                        instrumentationArgs = mapOf(),
+                        applicationPmClear = false,
+                        testApplicationPmClear = false,
+                        adbInitTimeoutMillis = 30_000,
+                        installOptions = "",
+                        preferableRecorderType = null,
+                        enableKaspressoStepsListener = false
                 )
             }
         }
@@ -242,15 +246,17 @@ object ConfigFactorySpec : Spek({
                 val configuration = parser.create(file, environmentReader)
 
                 configuration.vendorConfiguration shouldEqual AndroidConfiguration(
-                        environmentReader.read().androidSdk!!,
-                        File("kotlin-buildscript/build/outputs/apk/debug/kotlin-buildscript-debug.apk"),
-                        File("kotlin-buildscript/build/outputs/apk/androidTest/debug/kotlin-buildscript-debug-androidTest.apk"),
-                        false,
-                        mapOf(),
-                        false,
-                        false,
-                        30_000,
-                        ""
+                        androidSdk = environmentReader.read().androidSdk!!,
+                        applicationOutput = File("kotlin-buildscript/build/outputs/apk/debug/kotlin-buildscript-debug.apk"),
+                        testApplicationOutput = File("kotlin-buildscript/build/outputs/apk/androidTest/debug/kotlin-buildscript-debug-androidTest.apk"),
+                        autoGrantPermission = false,
+                        instrumentationArgs = mapOf(),
+                        applicationPmClear = false,
+                        testApplicationPmClear = false,
+                        adbInitTimeoutMillis = 30_000,
+                        installOptions = "",
+                        preferableRecorderType = null,
+                        enableKaspressoStepsListener = false
                 )
             }
         }

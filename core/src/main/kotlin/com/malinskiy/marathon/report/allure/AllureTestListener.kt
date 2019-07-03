@@ -2,12 +2,16 @@ package com.malinskiy.marathon.report.allure
 
 import com.github.automatedowl.tools.AllureEnvironmentWriter.allureEnvironmentWriter
 import com.google.common.collect.ImmutableMap
+import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import com.malinskiy.marathon.analytics.tracker.NoOpTracker
 import com.malinskiy.marathon.device.DeviceInfo
 import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.execution.TestResult
 import com.malinskiy.marathon.execution.TestStatus
+import com.malinskiy.marathon.report.allure.deserializers.AllureStageDeserializer
+import com.malinskiy.marathon.report.allure.deserializers.AllureStatusDeserializer
 import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.toSimpleSafeTestName
 import io.qameta.allure.AllureLifecycle
@@ -21,18 +25,24 @@ import io.qameta.allure.Severity
 import io.qameta.allure.SeverityLevel
 import io.qameta.allure.Story
 import io.qameta.allure.TmsLink
-import io.qameta.allure.model.Attachment
-import io.qameta.allure.model.Label
-import io.qameta.allure.model.Status
-import io.qameta.allure.model.StatusDetails
+import io.qameta.allure.model.*
 import io.qameta.allure.util.ResultsUtils
 import java.io.File
+import java.lang.reflect.Type
 import java.util.*
 
 class AllureTestListener(val configuration: Configuration, val outputDirectory: File)
     : NoOpTracker() {
 
     private val lifecycle: AllureLifecycle by lazy { AllureLifecycle(FileSystemResultsWriter(outputDirectory.toPath())) }
+    private val stepsListType: Type by lazy { object : TypeToken<List<StepResult>>() {}.type }
+    private val gson by lazy {
+        GsonBuilder()
+                .registerTypeAdapter(Status::class.java, AllureStatusDeserializer())
+                .registerTypeAdapter(Stage::class.java, AllureStageDeserializer())
+                .create()
+    }
+
 
     override fun terminate() {
         val params = configuration.toMap()
@@ -73,6 +83,8 @@ class AllureTestListener(val configuration: Configuration, val outputDirectory: 
                     .setType(it.type.toMimeType())
         }
 
+        val allureSteps = testResult.stepsJson?.let { gson.fromJson<List<StepResult>>(it, stepsListType) } ?: listOf()
+
         val allureTestResult = io.qameta.allure.model.TestResult()
                 .setUuid(uuid)
                 .setFullName(fullName)
@@ -81,6 +93,7 @@ class AllureTestListener(val configuration: Configuration, val outputDirectory: 
                 .setStart(testResult.startTime)
                 .setStop(testResult.endTime)
                 .setAttachments(allureAttachments)
+                .setSteps(allureSteps)
                 .setParameters()
                 .setLabels(
                         ResultsUtils.createHostLabel().setValue(device.serialNumber),

@@ -3,6 +3,7 @@ package com.malinskiy.marathon.report.allure
 import com.github.automatedowl.tools.AllureEnvironmentWriter.allureEnvironmentWriter
 import com.google.common.collect.ImmutableMap
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonParseException
 import com.google.gson.reflect.TypeToken
 import com.malinskiy.marathon.analytics.tracker.NoOpTracker
 import com.malinskiy.marathon.device.DeviceInfo
@@ -10,6 +11,7 @@ import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.execution.TestResult
 import com.malinskiy.marathon.execution.TestStatus
+import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.allure.deserializers.AllureStageDeserializer
 import com.malinskiy.marathon.report.allure.deserializers.AllureStatusDeserializer
 import com.malinskiy.marathon.test.Test
@@ -34,6 +36,7 @@ import java.util.*
 class AllureTestListener(val configuration: Configuration, val outputDirectory: File)
     : NoOpTracker() {
 
+    private val logger = MarathonLogging.logger {}
     private val lifecycle: AllureLifecycle by lazy { AllureLifecycle(FileSystemResultsWriter(outputDirectory.toPath())) }
     private val stepsListType: Type by lazy { object : TypeToken<List<StepResult>>() {}.type }
     private val gson by lazy {
@@ -68,14 +71,6 @@ class AllureTestListener(val configuration: Configuration, val outputDirectory: 
         val fullName = test.toSimpleSafeTestName()
         val suite = "${test.pkg}.${test.clazz}"
 
-        val status: Status = when (testResult.status) {
-            TestStatus.FAILURE -> Status.FAILED
-            TestStatus.PASSED -> Status.PASSED
-            TestStatus.INCOMPLETE -> Status.BROKEN
-            TestStatus.ASSUMPTION_FAILURE -> Status.SKIPPED
-            TestStatus.IGNORED -> Status.SKIPPED
-        }
-
         val allureAttachments: List<Attachment> = testResult.attachments.map {
             Attachment()
                     .setName(it.type.name.toLowerCase().capitalize())
@@ -83,7 +78,23 @@ class AllureTestListener(val configuration: Configuration, val outputDirectory: 
                     .setType(it.type.toMimeType())
         }
 
-        val allureSteps = testResult.stepsJson?.let { gson.fromJson<List<StepResult>>(it, stepsListType) } ?: listOf()
+        var hasStepsJsonParsingError = false
+        val allureSteps = try {
+            testResult.stepsJson?.let { gson.fromJson<List<StepResult>>(it, stepsListType) } ?: listOf()
+        } catch (ex: JsonParseException) {
+            logger.error(ex, { "Error with parsing Allure steps json [json: ${testResult.stepsJson}]" })
+            hasStepsJsonParsingError = true
+            emptyList<StepResult>()
+        }
+
+        val status: Status = when {
+            hasStepsJsonParsingError || testResult.status == TestStatus.FAILURE -> Status.FAILED
+            testResult.status == TestStatus.PASSED -> Status.PASSED
+            testResult.status == TestStatus.INCOMPLETE -> Status.BROKEN
+            testResult.status == TestStatus.ASSUMPTION_FAILURE -> Status.SKIPPED
+            testResult.status == TestStatus.IGNORED -> Status.SKIPPED
+            else -> Status.SKIPPED
+        }
 
         val allureTestResult = io.qameta.allure.model.TestResult()
                 .setUuid(uuid)

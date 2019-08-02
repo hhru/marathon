@@ -9,6 +9,7 @@ import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.device.toDeviceInfo
 import com.malinskiy.marathon.execution.Attachment
 import com.malinskiy.marathon.execution.AttachmentType
+import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.attachment.AttachmentListener
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
 import com.malinskiy.marathon.report.logs.LogWriter
@@ -25,9 +26,12 @@ class LogCatListener(
 
     companion object {
         private const val ALLURE_STEPS_JSON_PREFIX = "#AllureStepsInfoJson#:"
+        private const val TAG_KASPRESSO = "KASPRESSO"
+        private const val KASPRESSO_AFTER_TEST_SECTION = "AFTER TEST SECTION"
     }
 
 
+    private val logger = MarathonLogging.logger {}
     private val attachmentListeners = mutableListOf<AttachmentListener>()
     private val stepsJsonListeners = mutableListOf<StepsJsonListener>()
 
@@ -61,8 +65,17 @@ class LogCatListener(
         val stepsJson = StringBuilder("")
         val needSearchStepsJsonMessages = stepsJsonListeners.isNotEmpty()
         val logMessages = messages.map {
-            if (needSearchStepsJsonMessages && it.message.startsWith(ALLURE_STEPS_JSON_PREFIX)) {
-                stepsJson.append(it.message.substring(ALLURE_STEPS_JSON_PREFIX.length))
+            if (needSearchStepsJsonMessages) {
+                when {
+                    it.message.startsWith(ALLURE_STEPS_JSON_PREFIX) -> {
+                        stepsJson.append(it.message.substring(ALLURE_STEPS_JSON_PREFIX.length))
+                    }
+
+                    it.tag == TAG_KASPRESSO && it.message == KASPRESSO_AFTER_TEST_SECTION -> {
+                        logger.info { "Find logs from another test! Reset stepsJson." }
+                        stepsJson.setLength(0)
+                    }
+                }
             }
             "${it.timestamp} ${it.pid}-${it.tid}/${it.appName} ${it.logLevel.priorityLetter}/${it.tag}: ${it.message}"
         }

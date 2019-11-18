@@ -2,6 +2,7 @@ package com.malinskiy.marathon.execution
 
 import com.malinskiy.marathon.device.DeviceInfo
 import com.malinskiy.marathon.test.Test
+import io.qameta.allure.model.StepResult
 
 data class TestResult(
     val test: Test,
@@ -10,7 +11,8 @@ data class TestResult(
     val startTime: Long,
     val endTime: Long,
     val stacktrace: String? = null,
-    val attachments: List<Attachment> = emptyList()
+    val attachments: List<Attachment> = emptyList(),
+    val stepResults: List<StepResult> = emptyList()
 ) {
     fun durationMillis() = endTime - startTime
 

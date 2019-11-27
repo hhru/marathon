@@ -13,10 +13,13 @@ import com.malinskiy.marathon.execution.TestStatus
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.attachment.AttachmentListener
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
+import com.malinskiy.marathon.steps.StepsResultsListener
+import com.malinskiy.marathon.steps.StepsResultsProvider
 import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.test.toTestName
 import com.malinskiy.marathon.time.Timer
+import io.qameta.allure.model.StepResult
 import kotlinx.coroutines.CompletableDeferred
 
 class TestRunResultsListener(
@@ -24,14 +27,19 @@ class TestRunResultsListener(
     private val device: Device,
     private val deferred: CompletableDeferred<TestBatchResults>,
     private val timer: Timer,
-    attachmentProviders: List<AttachmentProvider>
-) : AbstractTestRunResultListener(), AttachmentListener {
+    attachmentProviders: List<AttachmentProvider>,
+    stepsResultsProviders: List<StepsResultsProvider>
+) : AbstractTestRunResultListener(), AttachmentListener, StepsResultsListener {
 
     private val attachments: MutableMap<Test, MutableList<Attachment>> = mutableMapOf()
+    private val stepsResultsMap: MutableMap<Test, MutableList<StepResult>> = mutableMapOf()
     private val creationTime = timer.currentTimeMillis()
 
     init {
         attachmentProviders.forEach {
+            it.registerListener(this)
+        }
+        stepsResultsProviders.forEach {
             it.registerListener(this)
         }
     }
@@ -43,6 +51,15 @@ class TestRunResultsListener(
         }
 
         attachments[test]!!.add(attachment)
+    }
+
+    override fun onStepsResults(test: Test, stepsResults: List<StepResult>) {
+        val list = stepsResultsMap[test]
+        if (list == null) {
+            stepsResultsMap[test] = mutableListOf()
+        }
+
+        stepsResultsMap[test]!!.addAll(stepsResults)
     }
 
     private val logger = MarathonLogging.logger("TestRunResultsListener")
@@ -131,6 +148,7 @@ class TestRunResultsListener(
         val testInstanceFromBatch = testBatch.tests.find { "${it.pkg}.${it.clazz}" == key.className && it.method == key.testName }
         val test = key.toTest()
         val attachments = attachments[test] ?: emptyList<Attachment>()
+        val stepsResults = stepsResultsMap[test] ?: emptyList<StepResult>()
         return TestResult(
             test = testInstanceFromBatch ?: test,
             device = device.toDeviceInfo(),
@@ -138,7 +156,8 @@ class TestRunResultsListener(
             startTime = value.startTime,
             endTime = value.endTime,
             stacktrace = value.stackTrace,
-            attachments = attachments
+            attachments = attachments,
+            stepResults = stepsResults
         )
     }
 

@@ -1,6 +1,7 @@
 package com.malinskiy.marathon.android.executor.listeners
 
 import com.malinskiy.marathon.android.model.TestIdentifier
+import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.steps.StepResultConverter
 import com.malinskiy.marathon.steps.StepsResultsListener
 import com.malinskiy.marathon.steps.StepsResultsProvider
@@ -15,6 +16,7 @@ class StepsResultsJsonListener(
         private const val EMPTY_STEPS_RESULTS_JSON = "[]"
     }
 
+    private val logger = MarathonLogging.logger("StepsResultsJsonListener")
     private val stepsResultsListeners = mutableListOf<StepsResultsListener>()
 
     override fun registerListener(listener: StepsResultsListener) {
@@ -23,7 +25,11 @@ class StepsResultsJsonListener(
 
 
     override fun testEnded(test: TestIdentifier, testMetrics: Map<String, String>) {
-        val stepsResultsJson = testMetrics[INSTRUMENTATION_STATUS_KEY_STEPS_RESULTS_JSON] ?: EMPTY_STEPS_RESULTS_JSON
+        val testMetricsValue = testMetrics[INSTRUMENTATION_STATUS_KEY_STEPS_RESULTS_JSON]
+        if (testMetricsValue != null) {
+            logger.info { "Find steps json in test metrics!" }
+        }
+        val stepsResultsJson = testMetricsValue ?:  EMPTY_STEPS_RESULTS_JSON
         val stepsResults = stepResultConverter.fromJson(stepsResultsJson)
 
         stepsResultsListeners.forEach { it.onStepsResults(test.toTest(), stepsResults) }

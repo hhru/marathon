@@ -29,6 +29,7 @@ import com.malinskiy.marathon.android.executor.listeners.DebugTestRunListener
 import com.malinskiy.marathon.android.executor.listeners.LogCatListener
 import com.malinskiy.marathon.android.executor.listeners.NoOpTestRunListener
 import com.malinskiy.marathon.android.executor.listeners.ProgressTestRunListener
+import com.malinskiy.marathon.android.executor.listeners.StepsResultsJsonListener
 import com.malinskiy.marathon.android.executor.listeners.TestRunResultsListener
 import com.malinskiy.marathon.android.executor.listeners.line.LineListener
 import com.malinskiy.marathon.android.executor.listeners.screenshot.ScreenCapturerTestRunListener
@@ -47,6 +48,8 @@ import com.malinskiy.marathon.io.FileManager
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
 import com.malinskiy.marathon.report.logs.LogWriter
+import com.malinskiy.marathon.steps.StepResultConverter
+import com.malinskiy.marathon.steps.StepsResultsProvider
 import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.time.Timer
 import kotlinx.coroutines.CompletableDeferred
@@ -296,11 +299,16 @@ class DdmlibAndroidDevice(
         val logCatListener = LogCatListener(this, devicePoolId, LogWriter(fileManager))
             .also { attachmentProviders.add(it) }
 
+        val stepsResultsJsonProviders = mutableListOf<StepsResultsProvider>()
+        val stepsResultsJsonListener = StepsResultsJsonListener(StepResultConverter())
+            .also { stepsResultsJsonProviders.add(it) }
+
         return CompositeTestRunListener(
             listOf(
                 recorderListener,
                 logCatListener,
-                TestRunResultsListener(testBatch, this, deferred, timer, attachmentProviders),
+                stepsResultsJsonListener,
+                TestRunResultsListener(testBatch, this, deferred, timer, attachmentProviders, stepsResultsJsonProviders),
                 DebugTestRunListener(this),
                 ProgressTestRunListener(this, devicePoolId, progressReporter)
             )

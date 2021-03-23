@@ -89,6 +89,7 @@ class AllureReporter(val configuration: Configuration, private val outputDirecto
             .setStart(testResult.startTime)
             .setStop(testResult.endTime)
             .setAttachments(allureAttachments)
+            .setSteps(testResult.stepResults)
             .setParameters()
             .setLabels(
                 ResultsUtils.createHostLabel().setValue(device.serialNumber),

@@ -30,6 +30,7 @@ import com.malinskiy.marathon.io.FileManager
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
 import com.malinskiy.marathon.report.logs.LogWriter
+import com.malinskiy.marathon.report.steps.AllureStepsProvider
 import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.time.Timer
 import kotlinx.coroutines.CompletableDeferred
@@ -237,6 +238,7 @@ abstract class BaseAndroidDevice(
     ): CompositeTestRunListener {
         val fileManager = FileManager(configuration.outputDir)
         val attachmentProviders = mutableListOf<AttachmentProvider>()
+        val allureStepsProviders = mutableListOf<AllureStepsProvider>()
 
         val features = this.deviceFeatures
 
@@ -247,7 +249,10 @@ abstract class BaseAndroidDevice(
         } ?: NoOpTestRunListener()
 
         val logCatListener = LogCatListener(this, devicePoolId, LogWriter(fileManager))
-            .also { attachmentProviders.add(it) }
+            .also {
+                attachmentProviders.add(it)
+                allureStepsProviders.add(it)
+            }
 
         val fileSyncTestRunListener =
             FileSyncTestRunListener(devicePoolId, this, this@BaseAndroidDevice.androidConfiguration.fileSyncConfiguration, fileManager)
@@ -256,7 +261,7 @@ abstract class BaseAndroidDevice(
             listOf(
                 recorderListener,
                 logCatListener,
-                TestRunResultsListener(testBatch, this, deferred, timer, attachmentProviders),
+                TestRunResultsListener(testBatch, this, deferred, timer, attachmentProviders, allureStepsProviders),
                 DebugTestRunListener(this),
                 ProgressTestRunListener(this, devicePoolId, progressReporter),
                 fileSyncTestRunListener

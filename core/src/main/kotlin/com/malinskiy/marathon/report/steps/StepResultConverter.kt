@@ -24,7 +24,7 @@ class StepResultConverter {
         return try {
             val parsed = gson.fromJson(stepsResultJson, stepsListType) as? List<StepResult>
             if (parsed == null) {
-                logger.error { "Error with parsing steps json (json: $stepsResultJson)" }
+                logger.info { "Error with parsing steps json (json: $stepsResultJson)" }
             }
             parsed
         } catch (ex: JsonParseException) {

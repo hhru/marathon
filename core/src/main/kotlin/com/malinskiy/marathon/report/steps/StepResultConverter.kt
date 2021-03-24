@@ -20,9 +20,13 @@ class StepResultConverter {
     }
     private val logger = MarathonLogging.logger("StepResultConverter")
 
-    fun fromJson(stepsResultJson: String): List<StepResult> {
+    fun fromJson(stepsResultJson: String): List<StepResult>? {
         return try {
-            gson.fromJson(stepsResultJson, stepsListType)
+            val parsed = gson.fromJson(stepsResultJson, stepsListType) as? List<StepResult>
+            if (parsed == null) {
+                logger.error { "Error with parsing steps json (json: $stepsResultJson)" }
+            }
+            parsed
         } catch (ex: JsonParseException) {
             logger.error(ex) { "Error with parsing steps json [json: $stepsResultJson]" }
             emptyList()

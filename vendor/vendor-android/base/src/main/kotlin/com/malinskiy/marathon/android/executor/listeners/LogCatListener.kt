@@ -63,7 +63,10 @@ class LogCatListener(
             ?.replace("\\u003d", "=")
             ?.replace("\\ u003d", "=")
             ?: "[]"
-        val convertedStepsResults = stepsResultConverter.fromJson(stepsJson) ?: emptyList()
+        val convertedStepsResults = stepsResultConverter.fromJson(
+            testIdentifier = "${test.toTest()}",
+            stepsResultJson = stepsJson
+        ) ?: emptyList()
 
         allureStepsListeners.forEach { it.onAllureSteps(test.toTest(), convertedStepsResults) }
         attachmentListeners.forEach { it.onAttachment(test.toTest(), Attachment(file, AttachmentType.LOG)) }

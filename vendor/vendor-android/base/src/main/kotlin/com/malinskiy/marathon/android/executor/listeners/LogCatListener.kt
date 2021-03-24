@@ -7,7 +7,6 @@ import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.device.toDeviceInfo
 import com.malinskiy.marathon.execution.Attachment
 import com.malinskiy.marathon.execution.AttachmentType
-import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.attachment.AttachmentListener
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
 import com.malinskiy.marathon.report.logs.LogWriter
@@ -26,7 +25,6 @@ class LogCatListener(
         private const val ALLURE_STEPS_START_PREFIX_LENGTH = "#AllureStepsInfoJson#:".length
     }
 
-    private val logger = MarathonLogging.logger("LogCatListener")
     private val attachmentListeners = mutableListOf<AttachmentListener>()
     private val allureStepsListeners = mutableListOf<AllureStepsListener>()
 
@@ -59,7 +57,12 @@ class LogCatListener(
 
         val file = logWriter.saveLogs(test.toTest(), devicePoolId, device.toDeviceInfo(), listOf(stringBuffer.toString()))
 
-        val stepsJson = stepsBuffer.toString().takeIf { it.isNotBlank() } ?: "[]"
+        val stepsJson = stepsBuffer.toString()
+            .takeIf { it.isNotBlank() }
+            ?.replace("\\/", "/")
+            ?.replace("\\u003d", "=")
+            ?.replace("\\ u003d", "=")
+            ?: "[]"
         val convertedStepsResults = stepsResultConverter.fromJson(stepsJson) ?: emptyList()
 
         allureStepsListeners.forEach { it.onAllureSteps(test.toTest(), convertedStepsResults) }

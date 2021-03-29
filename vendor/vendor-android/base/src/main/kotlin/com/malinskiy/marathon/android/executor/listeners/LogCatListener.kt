@@ -7,12 +7,14 @@ import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.device.toDeviceInfo
 import com.malinskiy.marathon.execution.Attachment
 import com.malinskiy.marathon.execution.AttachmentType
+import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.report.attachment.AttachmentListener
 import com.malinskiy.marathon.report.attachment.AttachmentProvider
 import com.malinskiy.marathon.report.logs.LogWriter
 import com.malinskiy.marathon.report.steps.AllureStepsListener
 import com.malinskiy.marathon.report.steps.AllureStepsProvider
 import com.malinskiy.marathon.report.steps.StepResultConverter
+import java.util.concurrent.atomic.AtomicBoolean
 
 class LogCatListener(
     private val device: AndroidDevice,
@@ -21,14 +23,25 @@ class LogCatListener(
 ) : NoOpTestRunListener(), AttachmentProvider, LineListener, AllureStepsProvider {
 
     companion object {
+        private const val KASPRESSO_TAG = "I/KASPRESSO: "
+        private const val KASPRESSO_TAG_LENGTH = KASPRESSO_TAG.length
+
         private const val ALLURE_STEPS_START_PREFIX = "#AllureStepsInfoJson#:"
-        private const val ALLURE_STEPS_START_PREFIX_LENGTH = "#AllureStepsInfoJson#:".length
+        private const val ALLURE_STEPS_START_PREFIX_LENGTH = ALLURE_STEPS_START_PREFIX.length
     }
 
     private val attachmentListeners = mutableListOf<AttachmentListener>()
     private val allureStepsListeners = mutableListOf<AllureStepsListener>()
 
     private val stepsResultConverter = StepResultConverter()
+
+    private val logger = MarathonLogging.logger("LogCatListener")
+
+    private val stringBuffer = StringBuffer()
+    private val stepsBuffer = StringBuffer()
+    private val strangeOutputBuffer = StringBuffer()
+
+    private val allureStepsJsonStarted = AtomicBoolean(false)
 
 
     override fun registerListener(listener: AttachmentListener) {
@@ -39,17 +52,17 @@ class LogCatListener(
         allureStepsListeners.add(listener)
     }
 
-    private val stringBuffer = StringBuffer()
-    private val stepsBuffer = StringBuffer()
 
     override fun onLine(line: String) {
-        parseAllureSteps(line)
+        parseAllureSteps2(line)
         stringBuffer.appendln(line)
     }
 
     override suspend fun testRunStarted(runName: String, testCount: Int) {
         device.addLogcatListener(this)
         stepsBuffer.setLength(0)
+        strangeOutputBuffer.setLength(0)
+        allureStepsJsonStarted.set(false)
     }
 
     override suspend fun testEnded(test: TestIdentifier, testMetrics: Map<String, String>) {
@@ -59,9 +72,9 @@ class LogCatListener(
 
         val stepsJson = stepsBuffer.toString()
             .takeIf { it.isNotBlank() }
-            ?.replace("\\/", "/")
-            ?.fixUnicodeSymbols()
-            ?.replaceUnicodeSymbols()
+//            ?.replace("\\/", "/")
+//            ?.fixUnicodeSymbols()
+//            ?.replaceUnicodeSymbols()
             ?: "[]"
         val convertedStepsResults = stepsResultConverter.fromJson(
             testIdentifier = "${test.toTest()}",
@@ -78,6 +91,44 @@ class LogCatListener(
 
     override suspend fun testRunFailed(errorMessage: String) {
         device.removeLogcatListener(this)
+    }
+
+
+    private fun parseAllureSteps2(line: String) {
+        val kaspressoTagIndex = line.indexOf(KASPRESSO_TAG)
+
+        if (kaspressoTagIndex == -1) {
+            if (allureStepsJsonStarted.get()) {
+                if (line.contains("TestRunner: failed") || line.contains("TestRunner: finished")) {
+                    allureStepsJsonStarted.set(false)
+                } else {
+                    logger.error { "Strange output: allure steps info expected" }
+                }
+            }
+        } else {
+            val kaspressoLogLine = line.substring(startIndex = kaspressoTagIndex + KASPRESSO_TAG_LENGTH)
+            val allureStepsJsonIndex = kaspressoLogLine.indexOf(ALLURE_STEPS_START_PREFIX)
+
+            if (allureStepsJsonIndex != -1) {
+                allureStepsJsonStarted.set(true)
+
+                val strangeLine = strangeOutputBuffer.toString().takeIf { it.isNotEmpty() } ?: ""
+                strangeOutputBuffer.setLength(0)
+
+                if (strangeLine.contains(KASPRESSO_TAG)) {
+                    // skip line
+                    logger.warn { "Skip '$strangeLine' for allure JSON" }
+                } else {
+                    stepsBuffer.append(strangeLine)
+                }
+
+                stepsBuffer.append(kaspressoLogLine.substring(startIndex = allureStepsJsonIndex + ALLURE_STEPS_START_PREFIX_LENGTH))
+            } else {
+                if (allureStepsJsonStarted.get()) {
+                    strangeOutputBuffer.append(kaspressoLogLine)
+                }
+            }
+        }
     }
 
 

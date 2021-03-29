@@ -60,8 +60,8 @@ class LogCatListener(
         val stepsJson = stepsBuffer.toString()
             .takeIf { it.isNotBlank() }
             ?.replace("\\/", "/")
-            ?.replace("\\u003d", "=")
-            ?.replace("\\ u003d", "=")
+            ?.fixUnicodeSymbols()
+            ?.replaceUnicodeSymbols()
             ?: "[]"
         val convertedStepsResults = stepsResultConverter.fromJson(
             testIdentifier = "${test.toTest()}",
@@ -87,6 +87,32 @@ class LogCatListener(
             val jsonSubstring = line.substring(stepsPrefixIndex + ALLURE_STEPS_START_PREFIX_LENGTH)
             stepsBuffer.append(jsonSubstring)
         }
+    }
+
+    private fun String.fixUnicodeSymbols(): String {
+        val mistakes = listOf(
+            "\\ u003", "\\u 003", "\\u0 03", "\\u00 3", "\\u003 "
+        )
+
+        var result = this.replace(" u003", "u003")
+        for (item in mistakes) {
+            result = result.replace(item, "\\u003")
+        }
+        return result
+    }
+
+    private fun String.replaceUnicodeSymbols(): String {
+        val mapping = mapOf(
+            "\\u003c" to "<",
+            "\\u003d" to "=",
+            "\\u003e" to ">",
+        )
+
+        var result = this
+        for (item in mapping) {
+            result = result.replace(item.key, item.value)
+        }
+        return result
     }
 
 }

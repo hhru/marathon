@@ -27,7 +27,7 @@ class StepResultConverter {
                 logger.info { "Error with parsing steps json (testIdentifier: $testIdentifier, json: $stepsResultJson)" }
             }
             parsed
-        } catch (ex: JsonParseException) {
+        } catch (ex: Exception) {
             logger.error(ex) { "Error with parsing steps json [testIdentifier: $testIdentifier, json: $stepsResultJson]" }
             emptyList()
         }
